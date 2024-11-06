@@ -1,0 +1,39 @@
+pipeline { 
+     agent any 
+  
+     stages { 
+         stage('git checkout') { 
+             steps { 
+               git 'https://github.com/kadamyogesh55/Jenkins_Pipeline_for_Monolithic_Application.git'
+            } 
+         } 
+         stage('Sonar testing') { 
+             steps { 
+               sh 'mvn sonar:sonar'  
+            } 
+         } 
+         stage('maven Build') { 
+             steps { 
+               sh 'mvn clean package'  
+            } 
+         } 
+         stage('Nexus upload') { 
+             steps { 
+               nexusArtifactUploader artifacts: [[artifactId: 'myweb', classifier: '', file: 'target/myweb-8.2.19.war', type: 'war']], credentialsId: 'nexus3', groupId: 'in.javahome', nexusUrl: '10.10.1.19:8081', nexusVersion: 'nexus3', protocol: 'http', repository: 'maven-releases', version: '8.2.19'
+             } 
+         } 
+        stage('Tomcat Deployment') { 
+             steps { 
+               sh """
+                  ssh jenkins@10.10.1.49 sudo rm -rf /var/tmp/*.war
+                  ssh jenkins@10.10.1.49 sudo rm -rf /opt/apache-tomcat-9.0.96/webapps/*.war
+                  scp /var/lib/jenkins/workspace/Jenkins_pipeline_for_monolithic_application/target/*.war jenkins@10.10.1.49:/var/tmp
+                  ssh jenkins@10.10.1.49 sudo cp /var/tmp/*war /opt/apache-tomcat-9.0.96/webapps/
+                  ssh jenkins@10.10.1.49 sudo tomdown
+                  ssh jenkins@10.10.1.49 sudo tomup
+
+                  """
+                }
+             } 
+         } 
+     }
